@@ -3,7 +3,7 @@
 
 import streamlit as st
 import pandas as pd
-import numpy as # Streamlit Grid Load Forecast Demo (Enhanced with More Features)
+import numpy as np  # Streamlit Grid Load Forecast Demo (Enhanced with More Features)
 # Run with: streamlit run this_file.py
 
 import streamlit as st
