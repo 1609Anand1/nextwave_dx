@@ -1,4 +1,9 @@
-# Streamlit Grid Load Forecast Demo (Polished)
+# Streamlit Grid L# Streamlit Grid Load Forecast Demo (Enhanced with More Features)
+# Run with: streamlit run this_file.py
+
+import streamlit as st
+import pandas as pd
+import numpy as # Streamlit Grid Load Forecast Demo (Enhanced with More Features)
 # Run with: streamlit run this_file.py
 
 import streamlit as st
@@ -24,7 +29,7 @@ bess_capacity = st.sidebar.slider("BESS (MW)", 0, 1000, 400)
 
 st.title("⚡ Grid Load Forecast Dashboard")
 st.markdown("""
-This prototype forecasts hourly grid load based on temperature and compares it against available supply from various generation sources. 
+This prototype forecasts grid load based on weather, time, and calendar features and compares it against available supply from various generation sources. 
 Use the controls on the left to simulate your grid's generation profile.
 """)
 
@@ -32,23 +37,39 @@ Use the controls on the left to simulate your grid's generation profile.
 dates = pd.date_range(start="2024-12-01", periods=96, freq="15min")  # 1 day, 15-min interval
 np.random.seed(42)
 temperature = 15 + 10 * np.sin(np.linspace(0, 10 * np.pi, len(dates))) + np.random.normal(0, 1, len(dates))
-load = 3000 + 200 * np.cos(np.linspace(0, 3 * np.pi, len(dates))) - 10 * temperature + np.random.normal(0, 50, len(dates))
 
-historical_df = pd.DataFrame({
+# Add realistic features
+day_of_week = [dt.weekday() for dt in dates]
+hour_of_day = [dt.hour + dt.minute / 60 for dt in dates]
+is_weekend = [1 if dt.weekday() >= 5 else 0 for dt in dates]
+solar_radiation = [max(0, np.sin(np.pi * (h - 6) / 12)) * 1000 if 6 <= h <= 18 else 0 for h in hour_of_day]
+wind_speed = 5 + 2 * np.sin(np.linspace(0, 5 * np.pi, len(dates))) + np.random.normal(0, 0.5, len(dates))
+
+# Simulated load
+df = pd.DataFrame({
     'timestamp': dates,
     'temperature': temperature,
-    'load': load
+    'day_of_week': day_of_week,
+    'hour_of_day': hour_of_day,
+    'is_weekend': is_weekend,
+    'solar_radiation': solar_radiation,
+    'wind_speed': wind_speed
 })
-historical_df.set_index('timestamp', inplace=True)
+df['load'] = 3000 + 200 * np.cos(np.linspace(0, 3 * np.pi, len(df))) - 8 * df['temperature'] \
+              + 0.005 * df['solar_radiation'] - 15 * df['wind_speed'] + np.random.normal(0, 40, len(df))
 
 # --- Train model ---
-train_df = historical_df.iloc[:-24]
-test_df = historical_df.iloc[-24:]
-X_train = train_df[['temperature']]
+df.set_index('timestamp', inplace=True)
+train_df = df.iloc[:-24]
+test_df = df.iloc[-24:]
+
+features = ['temperature', 'hour_of_day', 'day_of_week', 'is_weekend', 'solar_radiation', 'wind_speed']
+X_train = train_df[features]
 y_train = train_df['load']
+X_test = test_df[features]
+
 model = RandomForestRegressor(n_estimators=100, random_state=42)
 model.fit(X_train, y_train)
-X_test = test_df[['temperature']]
 load_pred = model.predict(X_test)
 
 # --- Supply simulation ---
@@ -105,3 +126,5 @@ detail_df = pd.DataFrame({
     'Status': ['DEFICIT' if s < l else 'OK' for s, l in zip(supply, load_pred)]
 })
 st.dataframe(detail_df.set_index('Timestamp'), use_container_width=True)
+
+
